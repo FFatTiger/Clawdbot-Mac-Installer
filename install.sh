@@ -85,7 +85,9 @@ install_clawdbot_cli() {
     exit 4
   fi
 
-  curl -fsSL https://clawd.bot/install.sh | bash
+  # Use the official installer but explicitly skip onboarding.
+  # We want THIS repo's guided flow, not the upstream onboarding wizard.
+  curl -fsSL https://clawd.bot/install.sh | bash -s -- --install-method npm --no-onboard --no-prompt
 
   if ! command -v clawdbot >/dev/null 2>&1; then
     err "$(t STEP2_PATH_FAIL)"
