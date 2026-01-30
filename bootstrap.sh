@@ -59,10 +59,10 @@ if [[ ! -r /dev/tty ]]; then
   exit 2
 fi
 
-# Reattach stdin to the controlling terminal so the installer can prompt.
-exec </dev/tty
+# Do NOT `exec </dev/tty` here — when running as `curl | bash`, bash reads the script
+# from stdin as it executes; redirecting stdin would truncate the script.
 
-read -r -p "Run on this Mac in local Terminal.app (NOT SSH)? [y/N]: " ans || true
+read -r -p "Run on this Mac in local Terminal.app (NOT SSH)? [y/N]: " ans < /dev/tty || true
 case "${ans:-}" in
   y|Y|yes|YES) :;;
   *) echo "[ERR ] Aborting." >&2; exit 3;;
@@ -99,9 +99,9 @@ fi
 cd "$CLONE_DIR"
 chmod +x install.sh install.zh.sh install.en.sh >/dev/null 2>&1 || true
 
-# Run installer
+# Run installer (reattach stdin to TTY for interactive prompts)
 if [[ -n "$LANG_ARG" ]]; then
-  exec ./install.sh --lang "$LANG_ARG"
+  exec ./install.sh --lang "$LANG_ARG" < /dev/tty
 else
-  exec ./install.sh
+  exec ./install.sh < /dev/tty
 fi
