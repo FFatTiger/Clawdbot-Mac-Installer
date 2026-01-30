@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/ui.sh
 source "$ROOT_DIR/lib/ui.sh"
+# shellcheck source=lib/i18n.sh
+source "$ROOT_DIR/lib/i18n.sh"
+
+i18n_init "$@"
 
 ENV_FILE="$HOME/.clawdbot/.env"
 
@@ -35,48 +39,48 @@ require_macos() {
 }
 
 require_local_terminal() {
-  bold "Step 0/5 — Local Terminal requirement"
-  info "This setup needs macOS permission grants (Full Disk Access / Automation)."
-  info "Do NOT run over SSH. Please run inside Terminal.app on the target Mac."
+  bold "$(t STEP0_TITLE)"
+  info "$(t STEP0_BODY1)"
+  info "$(t STEP0_BODY2)"
 
   # Heuristic detection
   if [[ -n "${SSH_CONNECTION:-}" || -n "${SSH_TTY:-}" ]]; then
     warn "SSH environment detected (SSH_CONNECTION/SSH_TTY is set)."
   fi
 
-  if ! confirm "Are you running this in the local Terminal app on this Mac (NOT SSH)?"; then
+  if ! confirm "$(t STEP0_Q)"; then
     err "Aborting. Re-run locally in Terminal.app."
     exit 2
   fi
 }
 
 preflight_network() {
-  bold "Step 1/5 — Network preflight"
-  info "Checking reachability to Google + Telegram..."
+  bold "$(t STEP1_TITLE)"
+  info "$(t STEP1_BODY)"
 
   if "$ROOT_DIR/scripts/network_check.sh" >/dev/null 2>&1; then
-    info "Network OK."
+    info "$(t STEP1_OK)"
   else
-    warn "Network check failed. This may break onboarding/login flows."
-    warn "You can still continue if you know what you’re doing."
-    if ! confirm "Continue anyway?"; then
+    warn "$(t STEP1_FAIL1)"
+    warn "$(t STEP1_FAIL2)"
+    if ! confirm "$(t STEP1_Q)"; then
       exit 3
     fi
   fi
 }
 
 install_clawdbot_cli() {
-  bold "Step 2/5 — Install / verify Clawdbot CLI"
+  bold "$(t STEP2_TITLE)"
 
   if command -v clawdbot >/dev/null 2>&1; then
-    info "clawdbot already installed: $(clawdbot --version)"
+    info "$(t STEP2_FOUND) $(clawdbot --version)"
     return 0
   fi
 
-  warn "clawdbot not found. Installing via official installer: https://clawd.bot/install.sh"
+  warn "$(t STEP2_MISSING)"
   info "This will install Node (if needed) and the clawdbot CLI."
 
-  if ! confirm "Proceed with installing clawdbot CLI now?"; then
+  if ! confirm "$(t STEP2_Q)"; then
     err "Cannot continue without clawdbot."
     exit 4
   fi
@@ -84,7 +88,7 @@ install_clawdbot_cli() {
   curl -fsSL https://clawd.bot/install.sh | bash
 
   if ! command -v clawdbot >/dev/null 2>&1; then
-    err "Install finished but clawdbot not on PATH. Open a new terminal and re-run."
+    err "$(t STEP2_PATH_FAIL)"
     exit 5
   fi
 
@@ -92,20 +96,20 @@ install_clawdbot_cli() {
 }
 
 collect_workspace_and_seed() {
-  bold "Step 3/5 — Workspace + defaults (no channels yet)"
+  bold "$(t STEP3_TITLE)"
 
-  ask WORKSPACE "Choose agent workspace directory" "~/clawd"
+  ask WORKSPACE "$(t STEP3_WS_PROMPT)" "~/clawd"
 
-  info "Seeding workspace + baseline config (no channels, no skills yet)..."
+  info "$(t STEP3_SEED)"
   clawdbot setup --workspace "$WORKSPACE" || true
 
   info "Workspace is set to: $WORKSPACE"
 
-  if confirm "Apply recommended default MD files (SOUL/USER/TOOLS) into the workspace?"; then
+  if confirm "$(t STEP3_APPLY_DEFAULTS_Q)"; then
     local user_name user_callme user_tz
-    ask user_name "Your name" ""
-    ask user_callme "What should the assistant call you" ""
-    ask user_tz "Your timezone" "Asia/Shanghai"
+    ask user_name "$(t STEP3_NAME)" ""
+    ask user_callme "$(t STEP3_CALLME)" ""
+    ask user_tz "$(t STEP3_TZ)" "Asia/Shanghai"
 
     mkdir -p "$WORKSPACE"
 
@@ -123,12 +127,12 @@ collect_workspace_and_seed() {
 
     cp "$tools_tpl" "$WORKSPACE/TOOLS.md"
 
-    info "Wrote defaults: $WORKSPACE/SOUL.md, USER.md, TOOLS.md"
+    info "$(t STEP3_WROTE) $WORKSPACE/SOUL.md, USER.md, TOOLS.md"
   fi
 }
 
 configure_model_provider() {
-  bold "Step 4/6 — Model provider + API configuration"
+  bold "$(t STEP4_TITLE)"
   info "We will NOT configure chat channels yet. First we set up model auth + default model."
 
   cat <<'TXT'
@@ -254,7 +258,7 @@ EOF
 }
 
 install_skill_packs() {
-  bold "Step 5/6 — Optional skills pack"
+  bold "$(t STEP5_TITLE)"
   info "You can install optional skills into: $WORKSPACE/skills"
 
   mkdir -p "$WORKSPACE/skills"
@@ -297,7 +301,7 @@ install_skill_packs() {
 }
 
 setup_default_channel() {
-  bold "Step 6/6 — Default channel (choose one)"
+  bold "$(t STEP6_TITLE)"
 
   cat <<'TXT'
 Choose your default channel:
@@ -401,14 +405,14 @@ main() {
   install_skill_packs
   setup_default_channel
 
-  bold "All done."
+  bold "$(t DONE_TITLE)"
   info "Optional plugins are available (not installed automatically):"
   info "  - wecom:      $ROOT_DIR/packs/plugins/wecom"
   info "  - feishu:    $ROOT_DIR/packs/plugins/feishu"
   info "  - dingtalk:  $ROOT_DIR/packs/plugins/clawdbot-dingtalk"
   info "  - qqbot:     $ROOT_DIR/packs/plugins/qqbot"
   info "  See: $ROOT_DIR/docs/OPTIONAL_PLUGINS.md"
-  info "Before publishing this repo, run: ./scripts/redaction_check.sh"
+  info "$(t BEFORE_PUBLISH) ./scripts/redaction_check.sh"
 }
 
 main "$@"
