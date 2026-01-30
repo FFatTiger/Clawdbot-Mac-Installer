@@ -71,6 +71,9 @@ _t_en() {
     STEP2_MISSING) echo "clawdbot not found. Installing via official installer: https://clawd.bot/install.sh";;
     STEP2_Q) echo "Proceed with installing clawdbot CLI now?";;
     STEP2_PATH_FAIL) echo "Install finished but clawdbot not on PATH. Open a new terminal and re-run.";;
+    STEP2_PATH_RECOVER_TRY) echo "Trying to fix PATH in this terminal session...";;
+    STEP2_PATH_RECOVER_OK) echo "Added to PATH:";;
+    STEP2_PATH_RECOVER_HINT) echo "Your shell PATH is missing the npm global bin directory. Add it to your shell rc (zsh: ~/.zshrc, bash: ~/.bashrc), then open a new terminal.";;
 
     STEP3_TITLE) echo "Step 3 — Workspace + defaults (no channels yet)";;
     STEP3_WS_PROMPT) echo "Choose agent workspace directory";;
@@ -211,6 +214,9 @@ _t_zh() {
     STEP2_MISSING) echo "未找到 clawdbot，将使用官方安装脚本：https://clawd.bot/install.sh";;
     STEP2_Q) echo "现在安装 clawdbot CLI 吗？";;
     STEP2_PATH_FAIL) echo "安装完成但找不到 clawdbot 命令。请打开新终端后重试。";;
+    STEP2_PATH_RECOVER_TRY) echo "正在尝试在当前终端里自动修复 PATH...";;
+    STEP2_PATH_RECOVER_OK) echo "已加入 PATH：";;
+    STEP2_PATH_RECOVER_HINT) echo "你的 shell PATH 缺少 npm 全局 bin 目录。请把它写入 ~/.zshrc（或 ~/.bashrc），然后打开新终端。";;
 
     STEP3_TITLE) echo "第 3 步——Workspace + 默认偏好（暂不配置渠道）";;
     STEP3_WS_PROMPT) echo "选择 workspace 目录";;

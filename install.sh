@@ -90,7 +90,33 @@ install_clawdbot_cli() {
   curl -fsSL https://clawd.bot/install.sh | bash -s -- --install-method npm --no-onboard --no-prompt
 
   if ! command -v clawdbot >/dev/null 2>&1; then
+    # Try to recover PATH in the current shell.
+    info "$(t STEP2_PATH_RECOVER_TRY)"
+
+    local npm_bin=""
+    if command -v npm >/dev/null 2>&1; then
+      npm_bin="$(npm bin -g 2>/dev/null || true)"
+      if [[ -z "$npm_bin" ]]; then
+        local npm_prefix
+        npm_prefix="$(npm prefix -g 2>/dev/null || true)"
+        if [[ -n "$npm_prefix" ]]; then
+          npm_bin="$npm_prefix/bin"
+        fi
+      fi
+    fi
+
+    for cand in "$npm_bin" "/opt/homebrew/bin" "/usr/local/bin"; do
+      if [[ -n "$cand" && -x "$cand/clawdbot" ]]; then
+        export PATH="$cand:$PATH"
+        info "$(t STEP2_PATH_RECOVER_OK) $cand"
+        break
+      fi
+    done
+  fi
+
+  if ! command -v clawdbot >/dev/null 2>&1; then
     err "$(t STEP2_PATH_FAIL)"
+    warn "$(t STEP2_PATH_RECOVER_HINT)"
     exit 5
   fi
 
