@@ -296,55 +296,99 @@ install_skill_packs() {
   fi
 }
 
-setup_imessage_default() {
-  bold "Step 6/6 — Default channel: iMessage (optional but recommended)"
+setup_default_channel() {
+  bold "Step 6/6 — Default channel (choose one)"
 
-  info "Before we configure iMessage:"
-  info "- Messages.app should be signed in."
-  info "- Recommended: use a DIFFERENT Apple ID for the bot than your personal one."
-  info "- You will need to grant Full Disk Access + Automation permissions."
+  cat <<'TXT'
+Choose your default channel:
+  1) iMessage (imsg, macOS only)
+  2) Telegram (Bot API)
+  3) Skip for now
+TXT
 
-  if ! confirm "Do you want to set up iMessage now (install imsg + enable channel)?"; then
-    warn "Skipping iMessage setup."
-    return 0
-  fi
+  local choice
+  ask choice "Enter 1-3" "1"
 
-  if ! command -v brew >/dev/null 2>&1; then
-    err "Homebrew is required to install imsg. Install Homebrew first: https://brew.sh"
-    exit 7
-  fi
+  case "$choice" in
+    1)
+      info "Before we configure iMessage:"
+      info "- Messages.app should be signed in."
+      info "- Recommended: use a DIFFERENT Apple ID for the bot than your personal one."
+      info "- You will need to grant Full Disk Access + Automation permissions."
 
-  info "Installing imsg via Homebrew..."
-  brew install steipete/tap/imsg
+      if ! command -v brew >/dev/null 2>&1; then
+        err "Homebrew is required to install imsg. Install Homebrew first: https://brew.sh"
+        exit 7
+      fi
 
-  local IMSGPATH
-  IMSGPATH="$(command -v imsg)"
-  local DBPATH="$HOME/Library/Messages/chat.db"
+      info "Installing imsg via Homebrew..."
+      brew install steipete/tap/imsg
 
-  info "Enabling iMessage channel in Clawdbot config..."
-  clawdbot config set channels.imessage.enabled true || true
-  clawdbot config set channels.imessage.cliPath "$IMSGPATH" || true
-  clawdbot config set channels.imessage.dbPath "$DBPATH" || true
-  clawdbot config set channels.imessage.dmPolicy pairing || true
+      local IMSGPATH
+      IMSGPATH="$(command -v imsg)"
+      local DBPATH="$HOME/Library/Messages/chat.db"
 
-  warn "Permissions required (manual):"
-  warn "1) System Settings -> Privacy & Security -> Full Disk Access: add clawdbot + imsg"
-  warn "2) If sending prompts appear (Automation), approve them."
-  warn "We will now run: imsg chats --limit 1  (to test DB access)."
-  pause
+      info "Enabling iMessage channel in Clawdbot config..."
+      clawdbot config set channels.imessage.enabled true || true
+      clawdbot config set channels.imessage.cliPath "$IMSGPATH" || true
+      clawdbot config set channels.imessage.dbPath "$DBPATH" || true
+      clawdbot config set channels.imessage.dmPolicy pairing || true
 
-  if imsg chats --limit 1 >/dev/null 2>&1; then
-    info "imsg can read chats (good sign)."
-  else
-    warn "imsg chat listing failed. You likely need Full Disk Access."
-    warn "After granting permissions, re-run: imsg chats --limit 1"
-  fi
+      # Ensure telegram is not enabled by accident.
+      clawdbot config set channels.telegram.enabled false || true
 
-  info "Restarting gateway service (if installed)..."
-  clawdbot gateway restart || true
+      warn "Permissions required (manual):"
+      warn "1) System Settings -> Privacy & Security -> Full Disk Access: add clawdbot + imsg"
+      warn "2) If sending prompts appear (Automation), approve them."
+      warn "We will now run: imsg chats --limit 1  (to test DB access)."
+      pause
 
-  info "Done. You can test sending from Clawdbot with:"
-  info "  clawdbot message send --channel imessage --target <handle_or_chat_id> --message \"hello\""
+      if imsg chats --limit 1 >/dev/null 2>&1; then
+        info "imsg can read chats (good sign)."
+      else
+        warn "imsg chat listing failed. You likely need Full Disk Access."
+        warn "After granting permissions, re-run: imsg chats --limit 1"
+      fi
+
+      info "Restarting gateway service (if installed)..."
+      clawdbot gateway restart || true
+
+      info "Done. Test: clawdbot message send --channel imessage --target <handle_or_chat_id> --message \"hello\""
+      ;;
+
+    2)
+      info "Telegram setup: create a bot with @BotFather, then paste the token here."
+      local tg_token
+      ask tg_token "TELEGRAM_BOT_TOKEN" ""
+      if [[ -z "$tg_token" ]]; then
+        err "TELEGRAM_BOT_TOKEN is required."; exit 8
+      fi
+
+      # Safer to keep secrets in env file.
+      set_env_var TELEGRAM_BOT_TOKEN "$tg_token"
+
+      info "Enabling Telegram channel in Clawdbot config (pairing for DMs)..."
+      clawdbot config set channels.telegram.enabled true || true
+      clawdbot config set channels.telegram.dmPolicy pairing || true
+      clawdbot config set channels.telegram.groups."*".requireMention true || true
+
+      # Ensure imessage isn't enabled by accident.
+      clawdbot config set channels.imessage.enabled false || true
+
+      info "Restarting gateway service (if installed)..."
+      clawdbot gateway restart || true
+
+      info "Done. Next: DM your bot in Telegram; approve pairing code via: clawdbot pairing approve telegram <CODE>"
+      ;;
+
+    3)
+      warn "Skipped channel setup. You can configure channels later."
+      ;;
+
+    *)
+      err "Invalid choice."; exit 8
+      ;;
+  esac
 }
 
 main() {
@@ -355,9 +399,12 @@ main() {
   collect_workspace_and_seed
   configure_model_provider
   install_skill_packs
-  setup_imessage_default
+  setup_default_channel
 
   bold "All done."
+  info "Optional plugins are available (not installed automatically):"
+  info "  - WeCom plugin: $ROOT_DIR/packs/plugins/wecom"
+  info "  See: $ROOT_DIR/docs/OPTIONAL_PLUGINS.md"
   info "Before publishing this repo, run: ./scripts/redaction_check.sh"
 }
 
