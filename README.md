@@ -12,6 +12,22 @@ Goal: a **safe, interactive** one-shot installer for macOS users that:
 
 ## Quick start
 
+### Option A (curl one-liner)
+
+Chinese:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FFatTiger/Clawdbot-Mac-Installer/main/bootstrap.sh | bash -s -- --lang zh
+```
+
+English:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FFatTiger/Clawdbot-Mac-Installer/main/bootstrap.sh | bash -s -- --lang en
+```
+
+### Option B (local clone)
+
 ```bash
 ./install.sh
 ```
