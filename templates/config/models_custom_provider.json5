@@ -1,0 +1,24 @@
+// Example: custom OpenAI-compatible provider (Responses API)
+// Copy into ~/.clawdbot/clawdbot.json under `models.providers` and set env vars.
+
+{
+  models: {
+    mode: "merge",
+    providers: {
+      "custom-openai": {
+        baseUrl: "https://YOUR_BASE_URL/v1",
+        apiKey: "${CUSTOM_OPENAI_API_KEY}",
+        api: "openai-responses", // or: openai-completions
+        authHeader: true,
+        models: [
+          { id: "YOUR_MODEL_ID", name: "Custom Model" }
+        ]
+      }
+    }
+  },
+  agents: {
+    defaults: {
+      model: { primary: "custom-openai/YOUR_MODEL_ID" }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.mobileconfig
+secrets/
+private/
+
+# Clawdbot local state (never commit)
+.clawdbot/
+
+# macOS
+*.swp
+*.swo
