@@ -30,7 +30,7 @@ Edit `~/.clawdbot/clawdbot.json`:
     "providers": {
       "dashscope": {
         "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "apiKey": "sk-xxx",
+        "apiKey": "YOUR_API_KEY",
         "api": "openai-completions",
         "models": [
           { "id": "qwen3-coder-plus", "contextWindow": 1000000, "maxTokens": 65536 }
