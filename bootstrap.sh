@@ -53,11 +53,14 @@ if [[ -n "${SSH_CONNECTION:-}" || -n "${SSH_TTY:-}" ]]; then
   echo "[WARN] SSH environment detected. macOS permission prompts may not work over SSH." >&2
 fi
 
-# Require TTY for interactive prompts
-if [[ ! -t 0 ]]; then
-  echo "[ERR ] No TTY detected. Please run in Terminal.app (interactive)." >&2
+# In a curl|bash pipeline, stdin is not a TTY. Use /dev/tty for interactivity.
+if [[ ! -r /dev/tty ]]; then
+  echo "[ERR ] No TTY available (/dev/tty not readable). Please run in Terminal.app." >&2
   exit 2
 fi
+
+# Reattach stdin to the controlling terminal so the installer can prompt.
+exec </dev/tty
 
 read -r -p "Run on this Mac in local Terminal.app (NOT SSH)? [y/N]: " ans || true
 case "${ans:-}" in
