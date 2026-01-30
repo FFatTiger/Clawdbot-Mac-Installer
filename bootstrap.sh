@@ -48,25 +48,15 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
-# Must be local terminal (not SSH)
+# Reminder only (no hard enforcement):
+# - Please run on the target Mac in a local terminal (not SSH).
+# - macOS permission prompts (Full Disk Access / Automation) require local interaction.
+
 if [[ -n "${SSH_CONNECTION:-}" || -n "${SSH_TTY:-}" ]]; then
   echo "[WARN] SSH environment detected. macOS permission prompts may not work over SSH." >&2
 fi
 
-# In a curl|bash pipeline, stdin is not a TTY. Use /dev/tty for interactivity.
-if [[ ! -r /dev/tty ]]; then
-  echo "[ERR ] No TTY available (/dev/tty not readable). Please run in Terminal.app." >&2
-  exit 2
-fi
-
-# Do NOT `exec </dev/tty` here — when running as `curl | bash`, bash reads the script
-# from stdin as it executes; redirecting stdin would truncate the script.
-
-read -r -p "Run on this Mac in local Terminal.app (NOT SSH)? [y/N]: " ans < /dev/tty || true
-case "${ans:-}" in
-  y|Y|yes|YES) :;;
-  *) echo "[ERR ] Aborting." >&2; exit 3;;
-esac
+echo "[INFO] Reminder: run this installer on the target Mac in a local terminal (not SSH)." >&2
 
 # deps
 for bin in curl git; do
@@ -99,9 +89,19 @@ fi
 cd "$CLONE_DIR"
 chmod +x install.sh install.zh.sh install.en.sh >/dev/null 2>&1 || true
 
-# Run installer (reattach stdin to TTY for interactive prompts)
-if [[ -n "$LANG_ARG" ]]; then
-  exec ./install.sh --lang "$LANG_ARG" < /dev/tty
+# Run installer
+# If /dev/tty is available, attach stdin to it so prompts work even under curl|bash.
+if [[ -r /dev/tty ]]; then
+  if [[ -n "$LANG_ARG" ]]; then
+    exec ./install.sh --lang "$LANG_ARG" < /dev/tty
+  else
+    exec ./install.sh < /dev/tty
+  fi
 else
-  exec ./install.sh < /dev/tty
+  echo "[WARN] /dev/tty is not readable. Interactive prompts may not work in this environment." >&2
+  if [[ -n "$LANG_ARG" ]]; then
+    exec ./install.sh --lang "$LANG_ARG"
+  else
+    exec ./install.sh
+  fi
 fi
