@@ -14,3 +14,7 @@ private/
 # macOS
 *.swp
 *.swo
+
+# installer temp dirs
+_incoming/
+_tmp/

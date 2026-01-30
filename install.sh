@@ -403,7 +403,10 @@ main() {
 
   bold "All done."
   info "Optional plugins are available (not installed automatically):"
-  info "  - WeCom plugin: $ROOT_DIR/packs/plugins/wecom"
+  info "  - wecom:      $ROOT_DIR/packs/plugins/wecom"
+  info "  - feishu:    $ROOT_DIR/packs/plugins/feishu"
+  info "  - dingtalk:  $ROOT_DIR/packs/plugins/clawdbot-dingtalk"
+  info "  - qqbot:     $ROOT_DIR/packs/plugins/qqbot"
   info "  See: $ROOT_DIR/docs/OPTIONAL_PLUGINS.md"
   info "Before publishing this repo, run: ./scripts/redaction_check.sh"
 }
