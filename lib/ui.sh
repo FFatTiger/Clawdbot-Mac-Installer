@@ -10,14 +10,29 @@ err()  { printf "[ERR ] %s\n" "$*"; }
 
 confirm() {
   # confirm "Question?"  (returns 0=yes, 1=no)
-  local prompt=${1:-"Continue?"}
+  local prompt=${1:-""}
   local ans
+
+  if [[ -z "$prompt" ]]; then
+    if declare -F t >/dev/null 2>&1; then
+      prompt="$(t CONFIRM_DEFAULT)"
+    else
+      prompt="Continue?"
+    fi
+  fi
+
   while true; do
     read -r -p "$prompt [y/N]: " ans || true
     case "${ans:-}" in
       y|Y|yes|YES) return 0;;
       n|N|no|NO|"") return 1;;
-      *) echo "Please answer y or n.";;
+      *)
+        if declare -F t >/dev/null 2>&1; then
+          echo "$(t CONFIRM_PLEASE)"
+        else
+          echo "Please answer y or n."
+        fi
+        ;;
     esac
   done
 }
@@ -38,5 +53,9 @@ ask() {
 }
 
 pause() {
-  read -r -p "Press ENTER to continue..." _ || true
+  local msg="Press ENTER to continue..."
+  if declare -F t >/dev/null 2>&1; then
+    msg="$(t PRESS_ENTER)"
+  fi
+  read -r -p "$msg" _ || true
 }

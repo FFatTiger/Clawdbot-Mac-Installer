@@ -33,7 +33,7 @@ set_env_var() {
 
 require_macos() {
   if [[ "$(uname -s)" != "Darwin" ]]; then
-    err "This installer is for macOS only.";
+    err "$(t ONLY_MACOS)";
     exit 1
   fi
 }
@@ -45,11 +45,11 @@ require_local_terminal() {
 
   # Heuristic detection
   if [[ -n "${SSH_CONNECTION:-}" || -n "${SSH_TTY:-}" ]]; then
-    warn "SSH environment detected (SSH_CONNECTION/SSH_TTY is set)."
+    warn "$(t SSH_DETECTED)"
   fi
 
   if ! confirm "$(t STEP0_Q)"; then
-    err "Aborting. Re-run locally in Terminal.app."
+    err "$(t ABORT_LOCAL)"
     exit 2
   fi
 }
@@ -78,10 +78,10 @@ install_clawdbot_cli() {
   fi
 
   warn "$(t STEP2_MISSING)"
-  info "This will install Node (if needed) and the clawdbot CLI."
+  info "$(t STEP2_NODE_NOTE)"
 
   if ! confirm "$(t STEP2_Q)"; then
-    err "Cannot continue without clawdbot."
+    err "$(t STEP2_CANNOT_CONTINUE)"
     exit 4
   fi
 
@@ -92,7 +92,7 @@ install_clawdbot_cli() {
     exit 5
   fi
 
-  info "Installed: $(clawdbot --version)"
+  info "$(t STEP2_INSTALLED) $(clawdbot --version)"
 }
 
 collect_workspace_and_seed() {
@@ -103,7 +103,7 @@ collect_workspace_and_seed() {
   info "$(t STEP3_SEED)"
   clawdbot setup --workspace "$WORKSPACE" || true
 
-  info "Workspace is set to: $WORKSPACE"
+  info "$(t STEP3_WS_SET) $WORKSPACE"
 
   if confirm "$(t STEP3_APPLY_DEFAULTS_Q)"; then
     local user_name user_callme user_tz
@@ -133,48 +133,46 @@ collect_workspace_and_seed() {
 
 configure_model_provider() {
   bold "$(t STEP4_TITLE)"
-  info "We will NOT configure chat channels yet. First we set up model auth + default model."
+  info "$(t MODEL_INTRO)"
 
-  cat <<'TXT'
-Choose a provider:
-  1) OpenAI (official API key)
-  2) Anthropic (official API key)
-  3) Google Gemini (API key)
-  4) OpenAI-compatible (custom baseUrl; Completions or Responses)
-  5) Anthropic-compatible (custom baseUrl; Messages API)
-  6) Skip for now
-TXT
+  printf "%s\n" "$(t MODEL_MENU_1)"
+  printf "  %s\n" "$(t MODEL_MENU_OPENAI)"
+  printf "  %s\n" "$(t MODEL_MENU_ANTHROPIC)"
+  printf "  %s\n" "$(t MODEL_MENU_GEMINI)"
+  printf "  %s\n" "$(t MODEL_MENU_OAI_COMPAT)"
+  printf "  %s\n" "$(t MODEL_MENU_ANTH_COMPAT)"
+  printf "  %s\n" "$(t MODEL_MENU_SKIP)"
 
   local choice
-  ask choice "Enter 1-6" "6"
+  ask choice "$(t MODEL_PROMPT_CHOICE)" "6"
 
   case "$choice" in
     1)
-      ask OPENAI_API_KEY "Enter OPENAI_API_KEY (will be written to ~/.clawdbot/.env)" ""
-      if [[ -z "$OPENAI_API_KEY" ]]; then err "OPENAI_API_KEY is required."; exit 6; fi
+      ask OPENAI_API_KEY "$(t MODEL_ASK_OPENAI)" ""
+      if [[ -z "$OPENAI_API_KEY" ]]; then err "$(t MODEL_REQ_OPENAI)"; exit 6; fi
       set_env_var OPENAI_API_KEY "$OPENAI_API_KEY"
       clawdbot config set agents.defaults.model.primary "openai/gpt-5.2" || true
       ;;
     2)
-      ask ANTHROPIC_API_KEY "Enter ANTHROPIC_API_KEY (will be written to ~/.clawdbot/.env)" ""
-      if [[ -z "$ANTHROPIC_API_KEY" ]]; then err "ANTHROPIC_API_KEY is required."; exit 6; fi
+      ask ANTHROPIC_API_KEY "$(t MODEL_ASK_ANTHROPIC)" ""
+      if [[ -z "$ANTHROPIC_API_KEY" ]]; then err "$(t MODEL_REQ_ANTHROPIC)"; exit 6; fi
       set_env_var ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
       clawdbot config set agents.defaults.model.primary "anthropic/claude-sonnet-4-5" || true
       ;;
     3)
-      ask GEMINI_API_KEY "Enter GEMINI_API_KEY (will be written to ~/.clawdbot/.env)" ""
-      if [[ -z "$GEMINI_API_KEY" ]]; then err "GEMINI_API_KEY is required."; exit 6; fi
+      ask GEMINI_API_KEY "$(t MODEL_ASK_GEMINI)" ""
+      if [[ -z "$GEMINI_API_KEY" ]]; then err "$(t MODEL_REQ_GEMINI)"; exit 6; fi
       set_env_var GEMINI_API_KEY "$GEMINI_API_KEY"
       clawdbot config set agents.defaults.model.primary "google/gemini-3-flash-preview" || true
       ;;
     4)
-      ask CUSTOM_BASE_URL "Enter OpenAI-compatible baseUrl (e.g. https://example.com/v1)" ""
-      ask CUSTOM_API_KEY "Enter API key for the custom provider" ""
-      ask CUSTOM_MODEL_ID "Enter model id (provider-side)" ""
-      ask CUSTOM_API_VARIANT "API variant: openai-completions or openai-responses" "openai-responses"
+      ask CUSTOM_BASE_URL "$(t MODEL_ASK_OAI_BASEURL)" ""
+      ask CUSTOM_API_KEY "$(t MODEL_ASK_OAI_KEY)" ""
+      ask CUSTOM_MODEL_ID "$(t MODEL_ASK_OAI_MODEL)" ""
+      ask CUSTOM_API_VARIANT "$(t MODEL_ASK_OAI_API)" "openai-responses"
 
       if [[ -z "$CUSTOM_BASE_URL" || -z "$CUSTOM_API_KEY" || -z "$CUSTOM_MODEL_ID" ]]; then
-        err "baseUrl/apiKey/model id are required."; exit 6
+        err "$(t MODEL_REQ_OAI_FIELDS)"; exit 6
       fi
 
       mkdir -p "$HOME/.clawdbot/config"
@@ -204,18 +202,18 @@ TXT
 EOF
 
       # If the user already uses includes, we avoid being clever; we just ask them to merge manually.
-      warn "A custom provider snippet was written to: ~/.clawdbot/config/custom-provider.json5"
-      warn "Please add it to ~/.clawdbot/clawdbot.json via $include, or paste its contents into your config."
-      warn "(This avoids accidentally breaking strict schema validation.)"
+      warn "$(t MODEL_OAI_WROTE) ~/.clawdbot/config/custom-provider.json5"
+      warn "$(t MODEL_OAI_INCLUDE1)"
+      warn "$(t MODEL_OAI_INCLUDE2)"
       pause
       ;;
     5)
-      ask ACOMP_BASE_URL "Enter Anthropic-compatible baseUrl (e.g. https://example.com/anthropic)" ""
-      ask ACOMP_API_KEY "Enter API key for the Anthropic-compatible provider" ""
-      ask ACOMP_MODEL_ID "Enter model id" ""
+      ask ACOMP_BASE_URL "$(t MODEL_ASK_ANTH_BASEURL)" ""
+      ask ACOMP_API_KEY "$(t MODEL_ASK_ANTH_KEY)" ""
+      ask ACOMP_MODEL_ID "$(t MODEL_ASK_ANTH_MODEL)" ""
 
       if [[ -z "$ACOMP_BASE_URL" || -z "$ACOMP_API_KEY" || -z "$ACOMP_MODEL_ID" ]]; then
-        err "baseUrl/apiKey/model id are required."; exit 6
+        err "$(t MODEL_REQ_ANTH_FIELDS)"; exit 6
       fi
 
       mkdir -p "$HOME/.clawdbot/config"
@@ -242,97 +240,95 @@ EOF
 }
 EOF
 
-      warn "Wrote: ~/.clawdbot/config/custom-anthropic.json5"
-      warn "Please include/merge it into ~/.clawdbot/clawdbot.json."
+      warn "$(t MODEL_ANTH_WROTE) ~/.clawdbot/config/custom-anthropic.json5"
+      warn "$(t MODEL_ANTH_INCLUDE)"
       pause
       ;;
     6)
-      warn "Skipped model config. You can run: clawdbot onboard  (or clawdbot configure --section model) later."
+      warn "$(t MODEL_SKIPPED)"
       ;;
     *)
-      err "Invalid choice."; exit 6
+      err "$(t MODEL_INVALID)"; exit 6
       ;;
   esac
 
-  info "Model/provider step complete."
+  info "$(t MODEL_DONE)"
 }
 
 install_skill_packs() {
   bold "$(t STEP5_TITLE)"
-  info "You can install optional skills into: $WORKSPACE/skills"
+  info "$(t SKILLS_INTRO) $WORKSPACE/skills"
 
   mkdir -p "$WORKSPACE/skills"
 
-  if confirm "Install skill: agent-browser (browser automation CLI; already installed separately)?"; then
+  if confirm "$(t SKILL_INSTALL_AGENT_BROWSER)"; then
     rsync -a --delete "$ROOT_DIR/packs/skills/agent-browser" "$WORKSPACE/skills/" || true
-    info "Installed: agent-browser"
+    info "$(t SKILL_INSTALLED) agent-browser"
   fi
 
-  if confirm "Install skill: searxng-search (self-hosted web search)?"; then
+  if confirm "$(t SKILL_INSTALL_SEARXNG)"; then
     rsync -a --delete "$ROOT_DIR/packs/skills/searxng-search" "$WORKSPACE/skills/" || true
-    ask SEARXNG_BASE_URL "SEARXNG_BASE_URL (e.g. http://localhost:8888)" "http://localhost:8888"
+    ask SEARXNG_BASE_URL "$(t SKILL_SEARXNG_BASE)" "http://localhost:8888"
     set_env_var SEARXNG_BASE_URL "$SEARXNG_BASE_URL"
-    info "Installed: searxng-search"
+    info "$(t SKILL_INSTALLED) searxng-search"
   fi
 
-  if confirm "Install skill: douyin-download (requires your Douyin_TikTok_Download_API server)?"; then
+  if confirm "$(t SKILL_INSTALL_DOUYIN)"; then
     rsync -a --delete "$ROOT_DIR/packs/skills/douyin-download" "$WORKSPACE/skills/" || true
-    ask DOYIN_API_BASE_URL "DOYIN_API_BASE_URL (e.g. http://localhost:8030)" "http://localhost:8030"
+    ask DOYIN_API_BASE_URL "$(t SKILL_DOUYIN_BASE)" "http://localhost:8030"
     set_env_var DOYIN_API_BASE_URL "$DOYIN_API_BASE_URL"
-    info "Installed: douyin-download"
+    info "$(t SKILL_INSTALLED) douyin-download"
   fi
 
-  if confirm "Install skill: pic-api (random images; needs python requests)?"; then
+  if confirm "$(t SKILL_INSTALL_PIC)"; then
     rsync -a --delete "$ROOT_DIR/packs/skills/pic-api" "$WORKSPACE/skills/" || true
-    info "To enable: python3 -m pip install --user requests"
-    info "Installed: pic-api"
+    info "$(t SKILL_PIC_HINT)"
+    info "$(t SKILL_INSTALLED) pic-api"
   fi
 
-  if confirm "Install skill: stock-market (A-share index/sector report)?"; then
+  if confirm "$(t SKILL_INSTALL_STOCK)"; then
     rsync -a --delete "$ROOT_DIR/packs/skills/stock-market" "$WORKSPACE/skills/" || true
-    if confirm "Configure optional iMessage recipient for stock report now?"; then
-      ask STOCK_REPORT_IMESSAGE_TO "STOCK_REPORT_IMESSAGE_TO (iMessage handle/email/phone)" ""
+    if confirm "$(t SKILL_STOCK_IMSG_Q)"; then
+      ask STOCK_REPORT_IMESSAGE_TO "$(t SKILL_STOCK_IMSG_VAR)" ""
       if [[ -n "$STOCK_REPORT_IMESSAGE_TO" ]]; then
         set_env_var STOCK_REPORT_IMESSAGE_TO "$STOCK_REPORT_IMESSAGE_TO"
       fi
     fi
-    info "Installed: stock-market"
+    info "$(t SKILL_INSTALLED) stock-market"
   fi
 }
 
 setup_default_channel() {
   bold "$(t STEP6_TITLE)"
 
-  cat <<'TXT'
-Choose your default channel:
-  1) iMessage (imsg, macOS only)
-  2) Telegram (Bot API)
-  3) Skip for now
-TXT
+  printf "%s\n" "$(t CH_MENU_TITLE)"
+  printf "  %s\n" "$(t CH_MENU_IMSG)"
+  printf "  %s\n" "$(t CH_MENU_TG)"
+  printf "  %s\n" "$(t CH_MENU_SKIP)"
 
   local choice
-  ask choice "Enter 1-3" "1"
+  ask choice "$(t CH_PROMPT_CHOICE)" "1"
 
   case "$choice" in
     1)
-      info "Before we configure iMessage:"
-      info "- Messages.app should be signed in."
-      info "- Recommended: use a DIFFERENT Apple ID for the bot than your personal one."
-      info "- You will need to grant Full Disk Access + Automation permissions."
+      info "$(t IMS_PRE1)"
+      info "$(t IMS_PRE2)"
+      info "$(t IMS_PRE3)"
+      info "$(t IMS_PRE4)"
 
       if ! command -v brew >/dev/null 2>&1; then
-        err "Homebrew is required to install imsg. Install Homebrew first: https://brew.sh"
+        err "$(t IMS_NEED_BREW)"
         exit 7
       fi
 
-      info "Installing imsg via Homebrew..."
+      info "$(t IMS_INSTALLING)"
       brew install steipete/tap/imsg
 
       local IMSGPATH
       IMSGPATH="$(command -v imsg)"
       local DBPATH="$HOME/Library/Messages/chat.db"
 
-      info "Enabling iMessage channel in Clawdbot config..."
+      info "$(t IMS_ENABLING)"
       clawdbot config set channels.imessage.enabled true || true
       clawdbot config set channels.imessage.cliPath "$IMSGPATH" || true
       clawdbot config set channels.imessage.dbPath "$DBPATH" || true
@@ -341,37 +337,37 @@ TXT
       # Ensure telegram is not enabled by accident.
       clawdbot config set channels.telegram.enabled false || true
 
-      warn "Permissions required (manual):"
-      warn "1) System Settings -> Privacy & Security -> Full Disk Access: add clawdbot + imsg"
-      warn "2) If sending prompts appear (Automation), approve them."
-      warn "We will now run: imsg chats --limit 1  (to test DB access)."
+      warn "$(t IMS_PERM_TITLE)"
+      warn "$(t IMS_PERM_1)"
+      warn "$(t IMS_PERM_2)"
+      warn "$(t IMS_PERM_3)"
       pause
 
       if imsg chats --limit 1 >/dev/null 2>&1; then
-        info "imsg can read chats (good sign)."
+        info "$(t IMS_OK)"
       else
-        warn "imsg chat listing failed. You likely need Full Disk Access."
-        warn "After granting permissions, re-run: imsg chats --limit 1"
+        warn "$(t IMS_FAIL)"
+        warn "$(t IMS_FAIL2)"
       fi
 
-      info "Restarting gateway service (if installed)..."
+      info "$(t GW_RESTARTING)"
       clawdbot gateway restart || true
 
-      info "Done. Test: clawdbot message send --channel imessage --target <handle_or_chat_id> --message \"hello\""
+      info "$(t DONE_TEST_IMSG) clawdbot message send --channel imessage --target <handle_or_chat_id> --message \"hello\""
       ;;
 
     2)
-      info "Telegram setup: create a bot with @BotFather, then paste the token here."
+      info "$(t TG_SETUP1)"
       local tg_token
-      ask tg_token "TELEGRAM_BOT_TOKEN" ""
+      ask tg_token "$(t TG_TOKEN_PROMPT)" ""
       if [[ -z "$tg_token" ]]; then
-        err "TELEGRAM_BOT_TOKEN is required."; exit 8
+        err "$(t TG_TOKEN_REQ)"; exit 8
       fi
 
       # Safer to keep secrets in env file.
       set_env_var TELEGRAM_BOT_TOKEN "$tg_token"
 
-      info "Enabling Telegram channel in Clawdbot config (pairing for DMs)..."
+      info "$(t TG_ENABLING)"
       clawdbot config set channels.telegram.enabled true || true
       clawdbot config set channels.telegram.dmPolicy pairing || true
       clawdbot config set channels.telegram.groups."*".requireMention true || true
@@ -379,18 +375,18 @@ TXT
       # Ensure imessage isn't enabled by accident.
       clawdbot config set channels.imessage.enabled false || true
 
-      info "Restarting gateway service (if installed)..."
+      info "$(t GW_RESTARTING)"
       clawdbot gateway restart || true
 
-      info "Done. Next: DM your bot in Telegram; approve pairing code via: clawdbot pairing approve telegram <CODE>"
+      info "$(t DONE_NEXT_TG) clawdbot pairing approve telegram <CODE>"
       ;;
 
     3)
-      warn "Skipped channel setup. You can configure channels later."
+      warn "$(t CH_SKIPPED)"
       ;;
 
     *)
-      err "Invalid choice."; exit 8
+      err "$(t CH_INVALID)"; exit 8
       ;;
   esac
 }
@@ -406,12 +402,12 @@ main() {
   setup_default_channel
 
   bold "$(t DONE_TITLE)"
-  info "Optional plugins are available (not installed automatically):"
+  info "$(t PLUGINS_NOTE)"
   info "  - wecom:      $ROOT_DIR/packs/plugins/wecom"
   info "  - feishu:    $ROOT_DIR/packs/plugins/feishu"
   info "  - dingtalk:  $ROOT_DIR/packs/plugins/clawdbot-dingtalk"
   info "  - qqbot:     $ROOT_DIR/packs/plugins/qqbot"
-  info "  See: $ROOT_DIR/docs/OPTIONAL_PLUGINS.md"
+  info "$(t PLUGINS_SEE) $ROOT_DIR/docs/OPTIONAL_PLUGINS.md"
   info "$(t BEFORE_PUBLISH) ./scripts/redaction_check.sh"
 }
 
