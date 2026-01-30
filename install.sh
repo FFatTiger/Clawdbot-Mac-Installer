@@ -92,19 +92,43 @@ install_clawdbot_cli() {
 }
 
 collect_workspace_and_seed() {
-  bold "Step 3/5 — Workspace + baseline config (no channels yet)"
+  bold "Step 3/5 — Workspace + defaults (no channels yet)"
 
   ask WORKSPACE "Choose agent workspace directory" "~/clawd"
 
   info "Seeding workspace + baseline config (no channels, no skills yet)..."
-  # Use setup (fast, deterministic) — user will configure providers next.
   clawdbot setup --workspace "$WORKSPACE" || true
 
   info "Workspace is set to: $WORKSPACE"
+
+  if confirm "Apply recommended default MD files (SOUL/USER/TOOLS) into the workspace?"; then
+    local user_name user_callme user_tz
+    ask user_name "Your name" ""
+    ask user_callme "What should the assistant call you" ""
+    ask user_tz "Your timezone" "Asia/Shanghai"
+
+    mkdir -p "$WORKSPACE"
+
+    # Simple template substitution
+    local soul_tpl="$ROOT_DIR/templates/workspace-defaults/SOUL.md.tpl"
+    local user_tpl="$ROOT_DIR/templates/workspace-defaults/USER.md.tpl"
+    local tools_tpl="$ROOT_DIR/templates/workspace-defaults/TOOLS.md.tpl"
+
+    cp "$soul_tpl" "$WORKSPACE/SOUL.md"
+
+    sed -e "s/{{USER_NAME}}/${user_name//\//\\/}/g" \
+        -e "s/{{USER_CALLME}}/${user_callme//\//\\/}/g" \
+        -e "s/{{USER_TIMEZONE}}/${user_tz//\//\\/}/g" \
+        "$user_tpl" > "$WORKSPACE/USER.md"
+
+    cp "$tools_tpl" "$WORKSPACE/TOOLS.md"
+
+    info "Wrote defaults: $WORKSPACE/SOUL.md, USER.md, TOOLS.md"
+  fi
 }
 
 configure_model_provider() {
-  bold "Step 4/5 — Model provider + API configuration"
+  bold "Step 4/6 — Model provider + API configuration"
   info "We will NOT configure chat channels yet. First we set up model auth + default model."
 
   cat <<'TXT'
@@ -229,8 +253,51 @@ EOF
   info "Model/provider step complete."
 }
 
+install_skill_packs() {
+  bold "Step 5/6 — Optional skills pack"
+  info "You can install optional skills into: $WORKSPACE/skills"
+
+  mkdir -p "$WORKSPACE/skills"
+
+  if confirm "Install skill: agent-browser (browser automation CLI; already installed separately)?"; then
+    rsync -a --delete "$ROOT_DIR/packs/skills/agent-browser" "$WORKSPACE/skills/" || true
+    info "Installed: agent-browser"
+  fi
+
+  if confirm "Install skill: searxng-search (self-hosted web search)?"; then
+    rsync -a --delete "$ROOT_DIR/packs/skills/searxng-search" "$WORKSPACE/skills/" || true
+    ask SEARXNG_BASE_URL "SEARXNG_BASE_URL (e.g. http://localhost:8888)" "http://localhost:8888"
+    set_env_var SEARXNG_BASE_URL "$SEARXNG_BASE_URL"
+    info "Installed: searxng-search"
+  fi
+
+  if confirm "Install skill: douyin-download (requires your Douyin_TikTok_Download_API server)?"; then
+    rsync -a --delete "$ROOT_DIR/packs/skills/douyin-download" "$WORKSPACE/skills/" || true
+    ask DOYIN_API_BASE_URL "DOYIN_API_BASE_URL (e.g. http://localhost:8030)" "http://localhost:8030"
+    set_env_var DOYIN_API_BASE_URL "$DOYIN_API_BASE_URL"
+    info "Installed: douyin-download"
+  fi
+
+  if confirm "Install skill: pic-api (random images; needs python requests)?"; then
+    rsync -a --delete "$ROOT_DIR/packs/skills/pic-api" "$WORKSPACE/skills/" || true
+    info "To enable: python3 -m pip install --user requests"
+    info "Installed: pic-api"
+  fi
+
+  if confirm "Install skill: stock-market (A-share index/sector report)?"; then
+    rsync -a --delete "$ROOT_DIR/packs/skills/stock-market" "$WORKSPACE/skills/" || true
+    if confirm "Configure optional iMessage recipient for stock report now?"; then
+      ask STOCK_REPORT_IMESSAGE_TO "STOCK_REPORT_IMESSAGE_TO (iMessage handle/email/phone)" ""
+      if [[ -n "$STOCK_REPORT_IMESSAGE_TO" ]]; then
+        set_env_var STOCK_REPORT_IMESSAGE_TO "$STOCK_REPORT_IMESSAGE_TO"
+      fi
+    fi
+    info "Installed: stock-market"
+  fi
+}
+
 setup_imessage_default() {
-  bold "Step 5/5 — Default channel: iMessage (optional but recommended)"
+  bold "Step 6/6 — Default channel: iMessage (optional but recommended)"
 
   info "Before we configure iMessage:"
   info "- Messages.app should be signed in."
@@ -287,6 +354,7 @@ main() {
   install_clawdbot_cli
   collect_workspace_and_seed
   configure_model_provider
+  install_skill_packs
   setup_imessage_default
 
   bold "All done."
